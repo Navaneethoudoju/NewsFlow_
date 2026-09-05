@@ -1,0 +1,151 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  EDITOR
+  WRITER
+}
+
+enum ArticleStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  SCHEDULED
+  PUBLISHED
+}
+
+enum EventType {
+  STATUS_CHANGE
+  REVISION_OPENED
+  REVISION_PUBLISHED
+  COMMENT
+  ALERT_DISMISSED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         Role
+  createdAt    DateTime @default(now())
+
+  ownedSections      Section[]        @relation("SectionOwner")
+  sectionAssignments SectionWriter[]
+  articlesAuthored   Article[]        @relation("ArticleAuthor")
+  events             ArticleEvent[]
+  dismissedAlerts    DismissedAlert[]
+  comments           Comment[]
+}
+
+model Section {
+  id              String   @id @default(cuid())
+  name            String
+  description     String
+  ownerEditorId   String
+  ownerEditor     User     @relation("SectionOwner", fields: [ownerEditorId], references: [id])
+  archived        Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  writers  SectionWriter[]
+  articles Article[]
+
+  @@index([ownerEditorId])
+}
+
+// Many-to-many join: a writer can be assigned to many sections,
+// a section can have many writers.
+model SectionWriter {
+  sectionId String
+  writerId  String
+  section   Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  writer    User    @relation(fields: [writerId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([sectionId, writerId])
+  @@index([writerId])
+}
+
+model Article {
+  id         String        @id @default(cuid())
+  sectionId  String
+  section    Section       @relation(fields: [sectionId], references: [id])
+  authorId   String
+  author     User          @relation("ArticleAuthor", fields: [authorId], references: [id])
+  title      String
+  body       String
+  status      ArticleStatus @default(DRAFT)
+  publishAt   DateTime?
+  publishedAt DateTime?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  // Self-relation: a revision points back at the published article it will replace.
+  revisionOfId String?
+  revisionOf   Article?  @relation("Revisions", fields: [revisionOfId], references: [id])
+  revisions    Article[] @relation("Revisions")
+
+  events          ArticleEvent[]
+  dismissedAlerts DismissedAlert[]
+  comments        Comment[]
+
+  @@index([sectionId])
+  @@index([authorId])
+  @@index([status])
+  @@index([publishAt])
+  @@index([revisionOfId])
+  @@index([status, publishAt])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  articleId String
+  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([articleId, createdAt])
+}
+
+// Append-only. No update/delete route should ever target this model.
+// onDelete: Restrict (rather than Cascade) is deliberate: the API already
+// has no route that deletes an Article, but if that ever changed, a stray
+// DELETE should fail loudly rather than silently wiping the audit trail it
+// was supposed to make impossible to lose.
+model ArticleEvent {
+  id         String    @id @default(cuid())
+  articleId  String
+  article    Article   @relation(fields: [articleId], references: [id], onDelete: Restrict)
+  type       EventType
+  oldStatus  ArticleStatus?
+  newStatus  ArticleStatus?
+  actorId    String
+  actor      User      @relation(fields: [actorId], references: [id])
+  message    String?
+  createdAt  DateTime  @default(now())
+
+  @@index([articleId, createdAt])
+}
+
+// Keyed on the specific publishAt being dismissed, not just the article,
+// so a re-scheduled article with a new publishAt is not silently suppressed.
+model DismissedAlert {
+  id            String   @id @default(cuid())
+  articleId     String
+  article       Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  scheduledAt   DateTime
+  dismissedById String
+  dismissedBy   User     @relation(fields: [dismissedById], references: [id])
+  dismissedAt   DateTime @default(now())
+
+  @@unique([articleId, scheduledAt])
+}
