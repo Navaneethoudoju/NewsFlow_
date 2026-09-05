@@ -50,9 +50,8 @@ export class AppError extends Error {
   static notFound(message: string) {
     return new AppError("NOT_FOUND", message);
   }
-  static conflict(message: string) {
-    return new AppError("CONFLICT", message);
-  }
+   static conflict(message: string, details?: unknown) { 
+    return new AppError("CONFLICT", message, details); } 
   static invalidTransition(message: string, details?: unknown) {
     return new AppError("INVALID_TRANSITION", message, details);
   }
