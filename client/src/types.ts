@@ -74,11 +74,17 @@ export interface ArticleEvent {
   oldStatus: ArticleStatus | null;
   newStatus: ArticleStatus | null;
   actorId: string;
-  actor: UserRef;
+  actor: {
+    id: string;
+    name: string;
+  };
+  article: {
+    id: string;
+    title: string;
+  };
   message: string | null;
   createdAt: string;
 }
-
 export interface Comment {
   id: string;
   articleId: string;

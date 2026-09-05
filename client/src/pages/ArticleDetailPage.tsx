@@ -52,7 +52,7 @@ export default function ArticleDetailPage() {
 
   if (isLoading) return <LoadingState label="Loading article…" />;
   if (isError || !article) return <ErrorState message="This article could not be loaded." />;
-
+  const articleId = article.id;
   const isAuthor = user?.id === article.authorId;
   const isOwnDraft = isAuthor && article.status === "DRAFT";
   const isOverdue = article.status === "SCHEDULED" && !!article.publishAt && new Date(article.publishAt) < new Date();
@@ -77,8 +77,7 @@ export default function ArticleDetailPage() {
 
   async function handleCreateRevision() {
     try {
-      const revision = await createRevision.mutateAsync(article.id);
-      toast.success("Revision created as a draft.");
+const revision = await createRevision.mutateAsync(articleId);      toast.success("Revision created as a draft.");
       navigate(`/articles/${revision.id}`);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Could not create a revision.");
