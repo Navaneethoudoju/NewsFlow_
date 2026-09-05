@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply bg-paper text-ink font-sans antialiased;
+  }
+  body {
+    @apply min-h-screen;
+  }
+  ::selection {
+    @apply bg-masthead/20;
+  }
+  *:focus-visible {
+    outline: 2px solid #8f2a1e;
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* A "stamped" status badge — the one deliberately distinctive visual motif,
+     used consistently for article status everywhere it appears. */
+  .stamp {
+    @apply inline-flex items-center gap-1.5 rounded-[3px] border px-2 py-0.5 text-[11px] font-semibold tracking-wide font-mono;
+  }
+}
+
